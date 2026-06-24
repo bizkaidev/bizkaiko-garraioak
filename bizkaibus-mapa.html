@@ -189,6 +189,14 @@
       container: 'map',
       style: {
         version: 8,
+        // Proyección plana clásica (Mercator), fijada de forma EXPLÍCITA.
+        // MapLibre 5.x puede entrar en modo "globe" (esférico) según el
+        // estilo o el zoom si no se especifica, y los Marker HTML tienen
+        // un bug conocido en esa proyección: la longitud puede quedar
+        // desplazada en múltiplos de 360° (changelog 5.4.0, issue #5473).
+        // Como este mapa es siempre de ámbito local (Bizkaia), no necesita
+        // proyección de globo en ningún momento — mercator es lo correcto.
+        projection: { type: 'mercator' },
         sources: {
           'osm': {
             type: 'raster',
@@ -203,7 +211,12 @@
         ]
       },
       center: [CENTRO[1], CENTRO[0]], // MapLibre usa [lon, lat]
-      zoom: 11
+      zoom: 11,
+      // Este mapa es siempre de ámbito local (Bizkaia); no tiene sentido
+      // renderizar copias repetidas del planeta a otras longitudes, y
+      // desactivarlo evita cualquier ambigüedad de "qué copia de la
+      // longitud" usar al colocar un marcador.
+      renderWorldCopies: false
     });
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
