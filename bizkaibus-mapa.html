@@ -190,6 +190,34 @@
     });
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
+    // El contenedor #map vive dentro de un layout flex (main{flex:1}), cuya
+    // altura final el navegador resuelve después del primer pintado. Si
+    // MapLibre calcula sus dimensiones internas (el <canvas> WebGL) antes de
+    // que el layout flex se asiente del todo, todas las coordenadas quedan
+    // mal proyectadas: el punto puede "parecer" en el sitio correcto a un
+    // zoom concreto por coincidencia, pero se desplaza al cambiar el zoom,
+    // porque la proyección interna no coincide con el tamaño real en pantalla.
+    // map.resize() fuerza a MapLibre a releer el tamaño real del contenedor.
+    function forzarResize(){
+      map.resize();
+    }
+    // Justo después de que el mapa termine de cargar su estilo...
+    map.on('load', forzarResize);
+    // ResizeObserver detecta cualquier cambio real de tamaño del contenedor
+    // #map (incluido el ajuste inicial del layout flex tras el primer
+    // pintado, o cambios posteriores por reflow de fuentes, header que se
+    // envuelve en pantallas estrechas, etc.) y siempre es más fiable que
+    // adivinar con un setTimeout/requestAnimationFrame.
+    if(window.ResizeObserver){
+      new ResizeObserver(forzarResize).observe(document.getElementById('map'));
+    } else {
+      // Navegadores muy antiguos sin ResizeObserver: red de seguridad simple.
+      requestAnimationFrame(function(){ requestAnimationFrame(forzarResize); });
+    }
+    // Por robustez, también ante cualquier cambio de tamaño de ventana
+    // (redimensionar, rotar el móvil, etc.).
+    window.addEventListener('resize', forzarResize);
+
     // Cerrar ruta al hacer clic en el mapa (fuera de un marcador)
     map.on('click', borrarRuta);
 
