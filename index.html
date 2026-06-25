@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transporte Bizkaia en directo</title>
+<style>
+  :root{
+    --fondo:#13130F;
+    --panel:#1C1B17;
+    --hueso:#F6F2EA;
+    --gris:#8A857B;
+    --linea:#33312A;
+    --bizkaibus:#E84E1B;
+    --metrobilbao:#D7282F;
+    --bilbobus:#1F8A4C;
+    --euskotren:#0F5FA6;
+    --renfe:#0F5FA6;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;min-height:100%;background:var(--fondo);color:var(--hueso);
+    font-family:'Helvetica Neue',Arial,sans-serif;}
+
+  .marquee{
+    background:var(--panel);
+    border-bottom:1px solid var(--linea);
+    padding:10px 0;
+    overflow:hidden;
+    white-space:nowrap;
+    font-family:'Courier New',monospace;
+    font-size:13px;
+    letter-spacing:1px;
+    color:#C9A227;
+  }
+  .marquee span{display:inline-block;padding-left:100%;animation:desplazar 28s linear infinite;}
+  @keyframes desplazar{0%{transform:translateX(0);}100%{transform:translateX(-100%);}}
+  @media (prefers-reduced-motion: reduce){
+    .marquee span{animation:none;padding-left:16px;}
+  }
+
+  header{
+    padding:48px 24px 28px;
+    text-align:center;
+  }
+  header .eyebrow{
+    font-size:12px;letter-spacing:3px;text-transform:uppercase;
+    color:var(--gris);margin:0 0 10px;
+  }
+  header h1{
+    font-size:clamp(28px, 5vw, 44px);
+    margin:0 0 8px;
+    font-weight:800;
+    letter-spacing:-0.5px;
+  }
+  header p{
+    color:var(--gris);font-size:15px;margin:0;
+  }
+
+  main{
+    max-width:1040px;
+    margin:0 auto;
+    padding:8px 20px 60px;
+  }
+
+  .red{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
+    gap:18px;
+    margin-top:28px;
+  }
+
+  .tarjeta{
+    position:relative;
+    background:var(--panel);
+    border:1px solid var(--linea);
+    border-radius:14px;
+    padding:22px 20px;
+    text-align:left;
+    cursor:pointer;
+    overflow:hidden;
+    transition:transform .15s ease, border-color .15s ease;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .tarjeta::before{
+    content:"";
+    position:absolute;top:0;left:0;bottom:0;width:6px;
+    background:var(--acento);
+  }
+  .tarjeta:hover, .tarjeta:focus-visible{
+    transform:translateY(-3px);
+    border-color:var(--acento);
+  }
+  .tarjeta:focus-visible{outline:2px solid var(--acento);outline-offset:2px;}
+  .tarjeta:disabled, .tarjeta.proximamente{cursor:default;}
+  .tarjeta.proximamente:hover{transform:none;border-color:var(--linea);}
+
+  .tarjeta .codigo{
+    font-family:'Courier New',monospace;
+    font-size:12px;
+    letter-spacing:2px;
+    color:var(--acento);
+    font-weight:700;
+    margin:0 0 14px;
+  }
+  .tarjeta h2{
+    margin:0 0 6px;
+    font-size:21px;
+    font-weight:800;
+  }
+  .tarjeta p.desc{
+    margin:0 0 18px;
+    color:var(--gris);
+    font-size:13px;
+    line-height:1.5;
+  }
+  .tarjeta .estado{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:12px;font-weight:600;
+    padding:5px 10px;border-radius:20px;
+  }
+  .estado.activo{background:rgba(46,160,67,.15);color:#4FCB6E;}
+  .estado.activo .dot{width:7px;height:7px;border-radius:50%;background:#4FCB6E;
+    animation:pulso 2s infinite;}
+  @keyframes pulso{
+    0%{box-shadow:0 0 0 0 rgba(79,203,110,.5);}
+    70%{box-shadow:0 0 0 6px rgba(79,203,110,0);}
+    100%{box-shadow:0 0 0 0 rgba(79,203,110,0);}
+  }
+  .estado.pendiente{background:rgba(138,133,123,.15);color:var(--gris);}
+
+  footer{
+    text-align:center;
+    padding:24px;
+    color:var(--gris);
+    font-size:12px;
+    border-top:1px solid var(--linea);
+  }
+
+  .toast{
+    position:fixed;left:50%;bottom:28px;
+    transform:translateX(-50%) translateY(20px);
+    background:var(--hueso);color:var(--fondo);
+    padding:12px 20px;border-radius:10px;
+    font-size:14px;font-weight:600;
+    box-shadow:0 8px 24px rgba(0,0,0,.4);
+    opacity:0;pointer-events:none;
+    transition:opacity .2s ease, transform .2s ease;
+    z-index:50;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+
+  <div class="marquee" aria-hidden="true">
+    <span>BIZKAIBUS · OPERATIVO &nbsp;&nbsp;&nbsp;&nbsp; METRO BILBAO · PRÓXIMAMENTE &nbsp;&nbsp;&nbsp;&nbsp; BILBOBUS · PRÓXIMAMENTE &nbsp;&nbsp;&nbsp;&nbsp; EUSKOTREN · PRÓXIMAMENTE &nbsp;&nbsp;&nbsp;&nbsp; RENFE · PRÓXIMAMENTE &nbsp;&nbsp;&nbsp;&nbsp; </span>
+  </div>
+
+  <header>
+    <p class="eyebrow">Bizkaia · panel de operadores</p>
+    <h1>Transporte en directo</h1>
+    <p>Posición en tiempo real de cada red de transporte del territorio.</p>
+  </header>
+
+  <main>
+    <div class="red" id="red-operadores">
+      <!-- Las tarjetas se generan desde JS para mantener un único origen de datos -->
+    </div>
+  </main>
+
+  <footer>
+    Datos en tiempo real cuando están disponibles. Resto de redes: en desarrollo.
+  </footer>
+
+  <div class="toast" id="toast">Próximamente</div>
+
+  <script>
+    var operadores = [
+      {
+        id: 'bizkaibus',
+        codigo: 'A · INTERURBANO',
+        nombre: 'Bizkaibus',
+        desc: 'Autobuses interurbanos de Bizkaia, posición en directo sobre el mapa.',
+        color: '#E84E1B',
+        activo: true,
+        href: 'bizkaibus-mapa.html'
+      },
+      {
+        id: 'metrobilbao',
+        codigo: 'L1 · L2 · L3',
+        nombre: 'Metro Bilbao',
+        desc: 'Líneas de metro del Gran Bilbao.',
+        color: '#D7282F',
+        activo: false
+      },
+      {
+        id: 'bilbobus',
+        codigo: 'URBANO',
+        nombre: 'Bilbobus',
+        desc: 'Autobuses urbanos de la ciudad de Bilbao.',
+        color: '#1F8A4C',
+        activo: false
+      },
+      {
+        id: 'euskotren',
+        codigo: 'TRENA',
+        nombre: 'Euskotren',
+        desc: 'Red de tren de vía estrecha del País Vasco.',
+        color: '#0F5FA6',
+        activo: false
+      },
+      {
+        id: 'renfe',
+        codigo: 'CERCANÍAS',
+        nombre: 'Renfe',
+        desc: 'Cercanías y media distancia en Bizkaia.',
+        color: '#0F5FA6',
+        activo: false
+      }
+    ];
+
+    var contenedor = document.getElementById('red-operadores');
+    var toast = document.getElementById('toast');
+    var toastTimeout = null;
+
+    operadores.forEach(function(op){
+      var tarjeta = document.createElement('button');
+      tarjeta.className = 'tarjeta' + (op.activo ? '' : ' proximamente');
+      tarjeta.style.setProperty('--acento', op.color);
+      tarjeta.setAttribute('type', 'button');
+
+      tarjeta.innerHTML =
+        '<p class="codigo">' + op.codigo + '</p>' +
+        '<h2>' + op.nombre + '</h2>' +
+        '<p class="desc">' + op.desc + '</p>' +
+        (op.activo
+          ? '<span class="estado activo"><span class="dot"></span>En directo</span>'
+          : '<span class="estado pendiente">Próximamente</span>');
+
+      tarjeta.addEventListener('click', function(){
+        if(op.activo){
+          window.location.href = op.href;
+        } else {
+          mostrarToast(op.nombre + ' todavía no está disponible — en desarrollo.');
+        }
+      });
+
+      contenedor.appendChild(tarjeta);
+    });
+
+    function mostrarToast(texto){
+      toast.textContent = texto;
+      toast.classList.add('show');
+      if(toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(function(){
+        toast.classList.remove('show');
+      }, 2400);
+    }
+  </script>
+</body>
+</html>
