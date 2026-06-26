@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FAQ — Transporte Bizkaia en directo</title>
+<style>
+  :root{
+    --fondo:#13130F;
+    --panel:#1C1B17;
+    --hueso:#F6F2EA;
+    --gris:#8A857B;
+    --linea:#33312A;
+    --amarillo:#E8B23D;
+  }
+  *{box-sizing:border-box;}
+  html{margin:0;min-height:100%;background:var(--fondo);}
+  body{margin:0;min-height:100%;color:var(--hueso);
+    font-family:'Helvetica Neue',Arial,sans-serif;
+    position:relative;
+    background:transparent;}
+
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    z-index:-2;
+    background-image:url('img/fondo-portada.jpg');
+    background-size:cover;
+    background-position:center bottom;
+    filter:blur(2px) saturate(90%) brightness(0.65);
+  }
+  body::after{
+    content:"";
+    position:fixed;
+    inset:0;
+    z-index:-1;
+    background:linear-gradient(180deg, rgba(19,19,15,.45) 0%, rgba(19,19,15,.7) 55%, rgba(19,19,15,.85) 100%);
+  }
+
+  header{
+    padding:36px 24px 20px;
+    text-align:center;
+  }
+
+  .volver{
+    display:inline-flex;align-items:center;gap:6px;
+    color:var(--gris);
+    text-decoration:none;
+    font-size:13px;
+    margin-bottom:18px;
+    border:1px solid var(--linea);
+    padding:6px 12px;
+    border-radius:20px;
+    transition:border-color .15s ease, color .15s ease;
+  }
+  .volver:hover{border-color:var(--amarillo);color:var(--amarillo);}
+
+  header h1{
+    font-size:clamp(24px, 4.5vw, 36px);
+    margin:0 0 22px;
+    font-weight:800;
+    letter-spacing:-0.5px;
+  }
+
+  .selector-idioma{
+    display:inline-flex;
+    background:var(--panel);
+    border:1px solid var(--linea);
+    border-radius:24px;
+    padding:4px;
+    gap:4px;
+  }
+  .selector-idioma button{
+    border:none;
+    background:transparent;
+    color:var(--gris);
+    font-family:inherit;
+    font-size:13px;
+    font-weight:700;
+    letter-spacing:1px;
+    padding:8px 18px;
+    border-radius:20px;
+    cursor:pointer;
+    transition:background .15s ease, color .15s ease;
+  }
+  .selector-idioma button.activo{
+    background:var(--amarillo);
+    color:#1C1B17;
+  }
+
+  main{
+    max-width:760px;
+    margin:0 auto;
+    padding:8px 20px 60px;
+  }
+
+  .pregunta{
+    background:var(--panel);
+    border:1px solid var(--linea);
+    border-radius:14px;
+    padding:22px 24px;
+    margin-bottom:16px;
+  }
+  .pregunta h2{
+    margin:0 0 10px;
+    font-size:17px;
+    font-weight:800;
+    color:var(--amarillo);
+  }
+  .pregunta p{
+    margin:0;
+    color:var(--hueso);
+    font-size:15px;
+    line-height:1.6;
+    opacity:.92;
+  }
+
+  footer{
+    text-align:center;
+    padding:24px;
+    color:var(--gris);
+    font-size:12px;
+    border-top:1px solid var(--linea);
+  }
+
+  [data-lang]{display:none;}
+  [data-lang].activo{display:block;}
+</style>
+</head>
+<body>
+
+  <header>
+    <a class="volver" href="index.html">← Inicio</a>
+    <h1>Preguntas frecuentes</h1>
+    <div class="selector-idioma" role="group" aria-label="Selector de idioma">
+      <button type="button" id="btn-cas" class="activo">CAS</button>
+      <button type="button" id="btn-eus">EUS</button>
+    </div>
+  </header>
+
+  <main>
+
+    <div data-lang="cas" class="activo">
+      <div class="pregunta">
+        <h2>¿Esta web está hecha con IA?</h2>
+        <p>Sí, los desarrolladores de esta web no son programadores, son gente que quiere aportar más información de la que ofrecen los medios oficiales y unificarla en una única plataforma. Las instituciones vizcaínas ofrecen información parcial y nosotros nos hemos propuesto facilitar a los usuarios el acceso a dicha información.</p>
+      </div>
+      <div class="pregunta">
+        <h2>¿Por qué usar esta web y no las oficiales?</h2>
+        <p>Esta web no pretende ser un sustituto de las fuentes de información oficiales, trata de aunar toda esa información en una única plataforma además de procesar cierta información que las fuentes oficiales no pueden ofrecer, como por ejemplo la ubicación en tiempo real de los autobuses.</p>
+      </div>
+      <div class="pregunta">
+        <h2>¿Obtenéis algún beneficio con esta web?</h2>
+        <p>No, no existe ningún tipo de monetización ni se ha recibido ningún pago o subvención para desarrollar esta web. El único propósito de la web es mejorar el acceso a la información referente al transporte público vizcaíno y fomentar su uso.</p>
+      </div>
+      <div class="pregunta">
+        <h2>¿De dónde sacáis la información que publicáis?</h2>
+        <p>Toda la información que ofrece esta web se adquiere a través de fuentes públicas que las instituciones vizcaínas ofrecen a través de sus diferentes sitios web.</p>
+      </div>
+    </div>
+
+    <div data-lang="eus">
+      <div class="pregunta">
+        <h2>Webgune hau AArekin (Adimen Artifizialarekin) eginda dago?</h2>
+        <p>Bai. Webgune honen garatzaileak ez dira programatzaileak; erakunde ofizialek eskaintzen duten informazioa osatu eta plataforma bakar batean bateratu nahi duten pertsonak dira. Bizkaiko erakundeek informazio partziala eskaintzen dute, eta guk erabiltzaileei informazio hori eskuratzen laguntzea dugu helburu.</p>
+      </div>
+      <div class="pregunta">
+        <h2>Zergatik erabili webgune hau eta ez iturri ofizialak?</h2>
+        <p>Webgune honek ez du informazio-iturri ofizialak ordezkatzeko asmorik. Helburua da informazio hori guztia plataforma bakar batean biltzea, eta, gainera, iturri ofizialek eskaini ezin duten informazio jakin bat prozesatzea; adibidez, autobusen denbora errealeko kokapena.</p>
+      </div>
+      <div class="pregunta">
+        <h2>Onurarik lortzen al duzue webgune honekin?</h2>
+        <p>Ez. Ez dago inolako diru-sarrerarik sortzeko sistemarik, eta ez da ordainketarik edo diru-laguntzarik jaso webgune hau garatzeko. Webgunearen helburu bakarra Bizkaiko garraio publikoari buruzko informazioa eskuratzeko bidea hobetzea eta haren erabilera sustatzea da.</p>
+      </div>
+      <div class="pregunta">
+        <h2>Nondik ateratzen duzue argitaratzen duzuen informazioa?</h2>
+        <p>Webgune honetan eskaintzen den informazio guztia iturri publikoetatik lortzen da. Informazio hori Bizkaiko erakundeek beren webgune eta kanal ofizialen bidez jartzen dute herritarren eskura.</p>
+      </div>
+    </div>
+
+  </main>
+
+  <footer>
+    Transporte Bizkaia en directo
+  </footer>
+
+  <script>
+    var btnCas = document.getElementById('btn-cas');
+    var btnEus = document.getElementById('btn-eus');
+    var bloqueCas = document.querySelector('[data-lang="cas"]');
+    var bloqueEus = document.querySelector('[data-lang="eus"]');
+
+    function mostrarIdioma(idioma){
+      var esCas = idioma === 'cas';
+      bloqueCas.classList.toggle('activo', esCas);
+      bloqueEus.classList.toggle('activo', !esCas);
+      btnCas.classList.toggle('activo', esCas);
+      btnEus.classList.toggle('activo', !esCas);
+    }
+
+    btnCas.addEventListener('click', function(){ mostrarIdioma('cas'); });
+    btnEus.addEventListener('click', function(){ mostrarIdioma('eus'); });
+  </script>
+</body>
+</html>
