@@ -195,7 +195,7 @@
 <body>
 
   <div class="marquee" aria-hidden="true">
-    <span>BIZKAIBUS · OPERATIVO &nbsp;&nbsp;&nbsp;&nbsp; METRO BILBAO · OPERATIVO &nbsp;&nbsp;&nbsp;&nbsp; BILBOBUS · PRÓXIMAMENTE &nbsp;&nbsp;&nbsp;&nbsp; EUSKOTREN · PRÓXIMAMENTE &nbsp;&nbsp;&nbsp;&nbsp; RENFE · PRÓXIMAMENTE &nbsp;&nbsp;&nbsp;&nbsp; </span>
+    <span>BIZKAIBUS · OPERATIVO &nbsp;&nbsp;&nbsp;&nbsp; METRO BILBAO · OPERATIVO &nbsp;&nbsp;&nbsp;&nbsp; BILBOBUS · PRÓXIMAMENTE &nbsp;&nbsp;&nbsp;&nbsp; EUSKOTREN · INFORMACIÓN &nbsp;&nbsp;&nbsp;&nbsp; RENFE · PRÓXIMAMENTE &nbsp;&nbsp;&nbsp;&nbsp; </span>
   </div>
 
   <a class="btn-faq" href="faq.html">FAQ</a>
@@ -248,7 +248,9 @@
         codigo: 'TRENA',
         nombre: 'Euskotren',
         color: '#0F5FA6',
-        activo: false
+        activo: true,
+        href: 'euskotren-info.html',
+        badge: 'Info red'
       },
       {
         id: 'renfe',
@@ -272,7 +274,9 @@
       tarjeta.innerHTML =
         '<p class="codigo">' + op.codigo + '</p>' +
         '<h2>' + op.nombre + '</h2>' +
-        (op.activo
+        ( op.badge
+          ? '<span class="estado activo" style="background:rgba(15,95,166,.2);color:#5BA3D9;">'+op.badge+'</span>'
+          : op.activo
           ? '<span class="estado activo"><span class="dot"></span>En directo</span>'
           : '<span class="estado pendiente">Próximamente</span>');
 
