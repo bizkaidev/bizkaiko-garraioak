@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Euskotren — Buscador de horarios</title>
+<style>
+  :root{--azul:#0F5FA6;--azul-osc:#0A4278;--tinta:#1C1B1A;--hueso:#F6F2EA;--gris:#6B6660;--borde:#DCD5C8;--verde:#2E7D4F;--rojo:#B3261E;}
+  *{box-sizing:border-box;}
+  html,body{margin:0;min-height:100%;font-family:'Helvetica Neue',Arial,sans-serif;background:#F0EDE6;color:var(--tinta);}
+  #app{display:flex;flex-direction:column;min-height:100vh;}
+
+  header{display:flex;align-items:center;gap:14px;padding:14px 18px;background:#1C1B1A;color:#F6F2EA;border-bottom:4px solid var(--azul);flex-wrap:wrap;}
+  .brand{display:flex;align-items:baseline;gap:8px;margin-right:auto;}
+  .brand .mark{font-weight:800;font-size:20px;color:var(--azul);}
+  .brand .sub{font-size:12px;color:#C9C4BC;}
+  .btn-back{border:1px solid #6B6660;background:transparent;color:#C9C4BC;padding:7px 12px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600;font-family:inherit;}
+  .btn-back:hover{background:#6B6660;color:#1C1B1A;}
+
+  .buscador{max-width:700px;margin:32px auto;padding:0 16px;}
+
+  .card{background:white;border-radius:14px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,.08);margin-bottom:20px;}
+  .card h2{margin:0 0 20px;font-size:18px;color:var(--azul);}
+
+  .campos{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media(max-width:500px){.campos{grid-template-columns:1fr;}}
+
+  label{display:block;font-size:12px;font-weight:700;color:var(--gris);margin-bottom:5px;letter-spacing:.5px;text-transform:uppercase;}
+  select,input[type="date"]{
+    width:100%;padding:10px 12px;border-radius:8px;
+    border:1.5px solid var(--borde);font-size:14px;
+    font-family:inherit;color:var(--tinta);background:white;
+    appearance:none;-webkit-appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B6660' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 12px center;
+    padding-right:32px;
+  }
+  select:focus,input[type="date"]:focus{outline:none;border-color:var(--azul);}
+
+  .campo-fecha{grid-column:1/-1;}
+
+  .btn-buscar{
+    width:100%;margin-top:20px;padding:13px;
+    background:var(--azul);color:white;border:none;
+    border-radius:8px;font-size:15px;font-weight:700;
+    cursor:pointer;font-family:inherit;
+    transition:background .15s;
+  }
+  .btn-buscar:hover{background:var(--azul-osc);}
+  .btn-buscar:disabled{background:#C9C4BC;cursor:not-allowed;}
+
+  /* Resultados */
+  #resultados{display:none;}
+  .res-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;}
+  .res-titulo{font-size:16px;font-weight:700;}
+  .res-info{font-size:12px;color:var(--gris);}
+  .res-linea{
+    display:inline-block;padding:3px 9px;border-radius:5px;
+    font-weight:800;font-size:12px;color:white;margin-right:6px;
+  }
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{background:var(--azul);color:white;padding:10px 12px;text-align:left;font-weight:700;font-size:12px;}
+  thead th:first-child{border-radius:6px 0 0 0;}
+  thead th:last-child{border-radius:0 6px 0 0;}
+  tbody tr:nth-child(even){background:#F8F6F2;}
+  tbody tr:hover{background:#EEF4FC;}
+  tbody td{padding:10px 12px;border-bottom:1px solid var(--borde);}
+  .hora-salida{font-weight:700;font-size:14px;color:var(--azul);}
+  .hora-llegada{font-weight:700;font-size:14px;}
+  .duracion{color:var(--gris);font-size:12px;}
+  .badge-tipo{font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700;color:white;}
+  .badge-lv{background:#5B8FA8;}
+  .badge-fs{background:#E8740C;}
+  .badge-noche{background:#333;}
+
+  .sin-resultados{text-align:center;padding:32px;color:var(--gris);}
+  .sin-resultados .emoji{font-size:32px;margin-bottom:8px;}
+
+  .aviso-aprox{background:#FFF8E7;border:1px solid #E8B23D;border-radius:8px;padding:10px 14px;font-size:12px;color:#7A5C00;margin-bottom:16px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand">
+      <span class="mark">EUSKOTREN</span>
+      <span class="sub">buscador de horarios · Bizkaia</span>
+    </div>
+    <button class="btn-back" onclick="window.location.href='euskotren-info.html'">← Mapa de líneas</button>
+    <button class="btn-back" onclick="window.location.href='index.html'">⌂ Inicio</button>
+  </header>
+
+  <div class="buscador">
+    <div class="card">
+      <h2>🔍 Buscar tren</h2>
+      <div class="campos">
+        <div>
+          <label for="origen">Origen</label>
+          <select id="origen"><option value="">Selecciona municipio…</option></select>
+        </div>
+        <div>
+          <label for="destino">Destino</label>
+          <select id="destino"><option value="">Selecciona municipio…</option></select>
+        </div>
+        <div class="campo-fecha">
+          <label for="fecha">Fecha</label>
+          <input type="date" id="fecha">
+        </div>
+      </div>
+      <button class="btn-buscar" id="btnBuscar" onclick="buscar()">Buscar trenes</button>
+    </div>
+
+    <div id="resultados">
+      <div class="aviso-aprox">
+        ⚠️ Los horarios mostrados son <strong>aproximados</strong> basados en los horarios oficiales de Euskotren (verano 2026). Para horarios exactos y actualizados consulta <a href="https://euskotren.euskadi.eus" target="_blank">euskotren.euskadi.eus</a> o la app oficial.
+      </div>
+      <div class="card">
+        <div class="res-header">
+          <div class="res-titulo" id="resTitulo"></div>
+          <div class="res-info" id="resInfo"></div>
+        </div>
+        <div id="resTabla"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Cargar base de datos ─────────────────────────────────────────────────────
+var DB = null;
+
+fetch('horarios_verano.json')
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    DB = data;
+    iniciarFormulario();
+  })
+  .catch(function(err){
+    console.error('Error cargando horarios:', err);
+    document.querySelector('.card h2').textContent = '⚠️ Error cargando horarios';
+  });
+
+function iniciarFormulario(){
+  var municipios = Object.keys(DB.municipios).sort();
+  var origen  = document.getElementById('origen');
+  var destino = document.getElementById('destino');
+  municipios.forEach(function(m){
+    origen.innerHTML  += '<option value="'+m+'">'+m+'</option>';
+    destino.innerHTML += '<option value="'+m+'">'+m+'</option>';
+  });
+  // Fecha por defecto: hoy
+  var hoy = new Date();
+  document.getElementById('fecha').value = hoy.toISOString().split('T')[0];
+}
+
+// ── Lógica de búsqueda ───────────────────────────────────────────────────────
+function buscar(){
+  var origen  = document.getElementById('origen').value;
+  var destino = document.getElementById('destino').value;
+  var fecha   = document.getElementById('fecha').value;
+
+  if(!origen || !destino){ alert('Selecciona origen y destino.'); return; }
+  if(origen === destino){ alert('El origen y el destino no pueden ser iguales.'); return; }
+  if(!fecha){ alert('Selecciona una fecha.'); return; }
+
+  var d = new Date(fecha + 'T12:00:00');
+  var diaSemana = d.getDay(); // 0=dom, 6=sab
+  var tipo;
+  if(diaSemana === 0 || diaSemana === 6) tipo = 'fs';
+  else tipo = 'lv';
+
+  // Buscar líneas que conecten origen-destino
+  var paradasOrigen  = DB.municipios[origen]  || [];
+  var paradasDestino = DB.municipios[destino] || [];
+
+  var trenes = [];
+
+  Object.keys(DB.lineas).forEach(function(lineaId){
+    var linea = DB.lineas[lineaId];
+    var paradas = linea.paradas;
+
+    paradasOrigen.forEach(function(po){
+      paradasDestino.forEach(function(pd){
+        var iO = paradas.indexOf(po);
+        var iD = paradas.indexOf(pd);
+        if(iO === -1 || iD === -1) return;
+        if(iO === iD) return;
+
+        var horarios = linea.horarios[tipo] || [];
+        // También incluir trenes noche si es fin de semana
+        var horariosNoche = (tipo === 'fs' && linea.horarios.noche) ? linea.horarios.noche : [];
+
+        function procesarHorarios(lista, esNoche){
+          lista.forEach(function(tren){
+            var hSalida  = tren[po];
+            var hLlegada = tren[pd];
+            if(!hSalida || !hLlegada) return;
+
+            // Verificar dirección correcta
+            var mSalida  = horaAMin(hSalida);
+            var mLlegada = horaAMin(hLlegada);
+
+            // Si destino está después de origen en el array, la hora de llegada debe ser mayor
+            if(iD > iO && mLlegada <= mSalida) return;
+            if(iD < iO && mLlegada >= mSalida) return;
+
+            trenes.push({
+              linea: lineaId,
+              color: colorLinea(lineaId),
+              origen: po,
+              destino: pd,
+              salida: hSalida,
+              llegada: hLlegada,
+              duracion: Math.abs(mLlegada - mSalida),
+              tipo: esNoche ? 'noche' : tipo,
+              minSalida: mSalida
+            });
+          });
+        }
+
+        procesarHorarios(horarios, false);
+        procesarHorarios(horariosNoche, true);
+      });
+    });
+  });
+
+  // Eliminar duplicados y ordenar
+  var vistos = {};
+  trenes = trenes.filter(function(t){
+    var key = t.linea + t.salida + t.origen;
+    if(vistos[key]) return false;
+    vistos[key] = true;
+    return true;
+  });
+  trenes.sort(function(a,b){ return a.minSalida - b.minSalida; });
+
+  mostrarResultados(origen, destino, fecha, tipo, trenes);
+}
+
+function mostrarResultados(origen, destino, fecha, tipo, trenes){
+  document.getElementById('resultados').style.display = 'block';
+
+  var d = new Date(fecha + 'T12:00:00');
+  var diaTxt = d.toLocaleDateString('es-ES', {weekday:'long', day:'numeric', month:'long'});
+  var tipoTxt = tipo === 'lv' ? 'Laborable' : 'Sábado/Domingo/Festivo';
+
+  document.getElementById('resTitulo').innerHTML =
+    origen + ' → ' + destino;
+  document.getElementById('resInfo').innerHTML =
+    diaTxt + ' · <span class="badge-tipo badge-'+(tipo==='lv'?'lv':'fs')+'">'+tipoTxt+'</span>';
+
+  var tabla = document.getElementById('resTabla');
+
+  if(trenes.length === 0){
+    tabla.innerHTML = '<div class="sin-resultados"><div class="emoji">🚂</div>No hay trenes directos entre estos municipios en la fecha seleccionada.<br>Puede que necesites hacer transbordo.</div>';
+    return;
+  }
+
+  var html = '<table><thead><tr><th>Salida</th><th>Llegada</th><th>Duración</th><th>Línea</th><th>Desde</th><th>Hasta</th></tr></thead><tbody>';
+  trenes.forEach(function(t){
+    var durMin = t.duracion;
+    var durTxt = durMin >= 60 ? Math.floor(durMin/60)+'h '+(durMin%60)+'min' : durMin+'min';
+    html += '<tr>';
+    html += '<td class="hora-salida">'+t.salida+'</td>';
+    html += '<td class="hora-llegada">'+t.llegada+'</td>';
+    html += '<td class="duracion">'+durTxt+'</td>';
+    html += '<td><span class="res-linea" style="background:'+t.color+'">'+t.linea+'</span></td>';
+    html += '<td style="font-size:12px;color:var(--gris)">'+t.origen+'</td>';
+    html += '<td style="font-size:12px;color:var(--gris)">'+t.destino+'</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  tabla.innerHTML = html;
+
+  document.getElementById('resultados').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function horaAMin(s){
+  if(!s) return 0;
+  var p = s.split(':');
+  return parseInt(p[0])*60 + parseInt(p[1]);
+}
+
+function colorLinea(id){
+  return {E1:'#0070C0', E3:'#00B050', E4:'#1F3F8F', L3:'#E040A0'}[id] || '#666';
+}
+</script>
+</body>
+</html>
