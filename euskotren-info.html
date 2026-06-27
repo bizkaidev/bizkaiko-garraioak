@@ -36,6 +36,56 @@
   .li{display:flex;align-items:center;gap:7px;}
   .lc{width:22px;height:4px;border-radius:2px;flex-shrink:0;}
   footer{padding:7px 16px;font-size:11px;color:var(--gris);background:var(--hueso);border-top:1px solid var(--borde);display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+
+  /* ── Buscador flotante ───────────────────────────────────────────────── */
+  #buscador-panel{
+    position:absolute;top:14px;right:14px;z-index:1000;
+    width:300px;
+    background:white;border-radius:12px;
+    box-shadow:0 4px 20px rgba(0,0,0,.22);
+    overflow:hidden;
+    transition:height .2s ease;
+  }
+  #buscador-toggle{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 14px;background:#0F5FA6;color:white;
+    cursor:pointer;font-weight:700;font-size:13px;
+    user-select:none;
+  }
+  #buscador-toggle .flecha{transition:transform .2s;font-size:10px;}
+  #buscador-toggle.abierto .flecha{transform:rotate(180deg);}
+  #buscador-body{padding:14px;display:none;}
+  #buscador-body.visible{display:block;}
+
+  #buscador-body label{display:block;font-size:11px;font-weight:700;color:var(--gris);margin:10px 0 4px;letter-spacing:.4px;text-transform:uppercase;}
+  #buscador-body label:first-child{margin-top:0;}
+  #buscador-body select,#buscador-body input[type="date"]{
+    width:100%;padding:8px 10px;border-radius:7px;
+    border:1.5px solid var(--borde);font-size:13px;
+    font-family:inherit;color:var(--tinta);background:white;
+    appearance:none;-webkit-appearance:none;
+  }
+  #buscador-body select:focus,#buscador-body input[type="date"]:focus{outline:none;border-color:#0F5FA6;}
+  .btn-buscar-mapa{
+    width:100%;margin-top:12px;padding:10px;
+    background:#0F5FA6;color:white;border:none;
+    border-radius:7px;font-size:13px;font-weight:700;
+    cursor:pointer;font-family:inherit;
+  }
+  .btn-buscar-mapa:hover{background:#0A4278;}
+
+  #buscador-resultado{margin-top:12px;max-height:260px;overflow-y:auto;}
+  .res-tren{
+    border:1px solid var(--borde);border-radius:7px;
+    padding:8px 10px;margin-bottom:6px;font-size:12px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .res-badge{padding:3px 7px;border-radius:5px;font-weight:800;font-size:11px;color:white;flex-shrink:0;}
+  .res-horas{flex:1;}
+  .res-salida{font-weight:700;font-size:13px;color:#0F5FA6;}
+  .res-dur{color:var(--gris);font-size:11px;}
+  .res-vacio{text-align:center;padding:16px;color:var(--gris);font-size:12px;}
+  .res-aviso{font-size:10px;color:var(--gris);margin-top:8px;line-height:1.4;border-top:1px solid var(--borde);padding-top:8px;}
 </style>
 </head>
 <body>
@@ -57,6 +107,24 @@
   <div class="lineas" id="selector"></div>
   <main>
     <div id="map"></div>
+
+    <!-- Buscador flotante -->
+    <div id="buscador-panel">
+      <div id="buscador-toggle" onclick="toggleBuscador()">
+        <span>🔍 Buscar horario de tren</span>
+        <span class="flecha">▼</span>
+      </div>
+      <div id="buscador-body">
+        <label for="b-origen">Origen</label>
+        <select id="b-origen"><option value="">Selecciona municipio…</option></select>
+        <label for="b-destino">Destino</label>
+        <select id="b-destino"><option value="">Selecciona municipio…</option></select>
+        <label for="b-fecha">Fecha</label>
+        <input type="date" id="b-fecha">
+        <button class="btn-buscar-mapa" onclick="buscarHorario()">Buscar</button>
+        <div id="buscador-resultado"></div>
+      </div>
+    </div>
     <div class="leyenda">
       <b>Euskotren Bizkaia</b>
       <div class="li"><span class="lc" style="background:#0070C0;"></span><span>E1 · Matiko – Durango/Traña</span></div>
@@ -285,3 +353,97 @@
 </script>
 </body>
 </html>
+<script>
+// ── Buscador flotante ────────────────────────────────────────────────────────
+var DB = null;
+
+fetch('horarios_verano.json')
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    DB = data;
+    var municipios = Object.keys(DB.municipios).sort();
+    var origen  = document.getElementById('b-origen');
+    var destino = document.getElementById('b-destino');
+    municipios.forEach(function(m){
+      origen.innerHTML  += '<option value="'+m+'">'+m+'</option>';
+      destino.innerHTML += '<option value="'+m+'">'+m+'</option>';
+    });
+    var hoy = new Date();
+    document.getElementById('b-fecha').value = hoy.toISOString().split('T')[0];
+  });
+
+function toggleBuscador(){
+  var toggle = document.getElementById('buscador-toggle');
+  var body   = document.getElementById('buscador-body');
+  toggle.classList.toggle('abierto');
+  body.classList.toggle('visible');
+}
+
+function buscarHorario(){
+  if(!DB) return;
+  var origen  = document.getElementById('b-origen').value;
+  var destino = document.getElementById('b-destino').value;
+  var fecha   = document.getElementById('b-fecha').value;
+  var div     = document.getElementById('buscador-resultado');
+
+  if(!origen || !destino){ div.innerHTML='<div class="res-vacio">Selecciona origen y destino.</div>'; return; }
+  if(origen===destino){ div.innerHTML='<div class="res-vacio">Origen y destino no pueden ser iguales.</div>'; return; }
+
+  var d = new Date(fecha+'T12:00:00');
+  var dia = d.getDay();
+  var tipo = (dia===0||dia===6) ? 'fs' : 'lv';
+
+  var paradasOrigen  = DB.municipios[origen]  || [];
+  var paradasDestino = DB.municipios[destino] || [];
+  var trenes = [];
+  var vistos = {};
+
+  Object.keys(DB.lineas).forEach(function(lid){
+    var linea   = DB.lineas[lid];
+    var paradas = linea.paradas;
+    var horarios = (linea.horarios[tipo]||[]).concat(tipo==='fs'?(linea.horarios.noche||[]):[]);
+
+    paradasOrigen.forEach(function(po){
+      paradasDestino.forEach(function(pd){
+        var iO = paradas.indexOf(po);
+        var iD = paradas.indexOf(pd);
+        if(iO===-1||iD===-1||iO===iD) return;
+
+        horarios.forEach(function(tren){
+          var hS = tren[po], hL = tren[pd];
+          if(!hS||!hL) return;
+          var mS = hAm(hS), mL = hAm(hL);
+          if(iD>iO && mL<=mS) return;
+          if(iD<iO && mL>=mS) return;
+          var key = lid+hS+po;
+          if(vistos[key]) return;
+          vistos[key] = true;
+          trenes.push({lid:lid, color:cLinea(lid), salida:hS, llegada:hL, dur:Math.abs(mL-mS), mS:mS});
+        });
+      });
+    });
+  });
+
+  trenes.sort(function(a,b){ return a.mS-b.mS; });
+
+  if(!trenes.length){
+    div.innerHTML='<div class="res-vacio">🚂 No hay trenes directos entre estos municipios.</div>';
+    return;
+  }
+
+  var html = '';
+  trenes.forEach(function(t){
+    var dur = t.dur>=60 ? Math.floor(t.dur/60)+'h '+(t.dur%60)+'min' : t.dur+'min';
+    html += '<div class="res-tren">';
+    html += '<span class="res-badge" style="background:'+t.color+'">'+t.lid+'</span>';
+    html += '<div class="res-horas"><span class="res-salida">'+t.salida+'</span> → '+t.llegada;
+    html += ' <span class="res-dur">('+dur+')</span></div>';
+    html += '</div>';
+  });
+  html += '<div class="res-aviso">⚠️ Horarios aproximados. Consulta <a href="https://euskotren.euskadi.eus" target="_blank">euskotren.euskadi.eus</a> para horarios exactos.</div>';
+  div.innerHTML = html;
+}
+
+function hAm(s){ var p=s.split(':'); return parseInt(p[0])*60+parseInt(p[1]); }
+function cLinea(id){ return {E1:'#0070C0',E3:'#00B050',E4:'#1F3F8F',L3:'#E040A0'}[id]||'#666'; }
+</script>
