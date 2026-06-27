@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Metro Bilbao en directo</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<style>
+  :root{
+    --l1:#E8740C;--l2:#0F5FA6;
+    --tinta:#1C1B1A;--hueso:#F6F2EA;--gris:#6B6660;--linea:#DCD5C8;
+    --verde-ok:#2E7D4F;--rojo-err:#B3261E;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;font-family:'Helvetica Neue',Arial,sans-serif;background:var(--hueso);color:var(--tinta);}
+  #app{display:flex;flex-direction:column;height:100%;}
+  header{display:flex;align-items:center;gap:14px;padding:14px 18px;background:var(--tinta);color:var(--hueso);border-bottom:4px solid var(--l1);flex-wrap:wrap;}
+  .brand{display:flex;align-items:baseline;gap:8px;margin-right:auto;}
+  .brand .mark{font-weight:800;font-size:20px;letter-spacing:.5px;color:var(--l1);}
+  .brand .sub{font-size:12px;color:#C9C4BC;font-weight:400;}
+  .status{font-size:12px;display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:20px;background:#2A2826;}
+  .dot{width:8px;height:8px;border-radius:50%;background:#6B6660;transition:background .2s;}
+  .status.ok .dot{background:var(--verde-ok);animation:pulse 2s infinite;}
+  .status.err .dot{background:var(--rojo-err);}
+  .status.loading .dot{background:#E8B23D;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(46,125,79,.5);}70%{box-shadow:0 0 0 6px rgba(46,125,79,0);}100%{box-shadow:0 0 0 0 rgba(46,125,79,0);}}
+  .controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .controls select{padding:7px 8px;border-radius:6px;border:1px solid #3a3835;background:#2A2826;color:var(--hueso);font-size:13px;}
+  .btn{border:1px solid var(--l1);background:transparent;color:var(--l1);padding:7px 12px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600;transition:background .15s,color .15s;}
+  .btn:hover{background:var(--l1);color:var(--tinta);}
+  .btn-back{border-color:#6B6660;color:#C9C4BC;}
+  .btn-back:hover{background:#6B6660;color:var(--tinta);}
+  main{position:relative;flex:1;min-height:0;}
+  #map{position:absolute;inset:0;}
+  .leyenda{position:absolute;bottom:16px;left:16px;z-index:500;background:rgba(28,27,26,0.92);color:var(--hueso);padding:10px 14px;border-radius:8px;font-size:12px;display:flex;flex-direction:column;gap:6px;box-shadow:0 4px 14px rgba(0,0,0,.25);}
+  .leyenda-titulo{color:var(--l1);font-weight:800;font-size:13px;}
+  .leyenda-linea{display:flex;align-items:center;gap:6px;}
+  .leyenda-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+  .aviso{position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:600;max-width:560px;width:calc(100% - 32px);background:#FFF7EC;border:1px solid var(--l1);border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.5;box-shadow:0 8px 22px rgba(0,0,0,.18);display:none;}
+  .aviso.show{display:block;}
+  .aviso h3{margin:0 0 6px;font-size:14px;color:#C23E12;}
+  .leaflet-popup-content-wrapper{border-radius:10px;}
+  .popup-linea{display:inline-block;font-weight:800;font-size:14px;padding:2px 8px;border-radius:5px;margin-bottom:6px;color:white;}
+  .popup-dest{font-weight:600;font-size:13px;margin:0 0 4px;}
+  .popup-meta{font-size:12px;color:var(--gris);margin:2px 0;}
+  footer{padding:7px 16px;font-size:11px;color:var(--gris);background:var(--hueso);border-top:1px solid var(--linea);display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand">
+      <span class="mark">METRO BILBAO</span>
+      <span class="sub">posición de trenes en directo</span>
+    </div>
+    <div class="controls">
+      <select id="filtroLinea">
+        <option value="">Todas las líneas</option>
+        <option value="L1">L1 — Etxebarri · Plentzia</option>
+        <option value="L2">L2 — Basauri · Kabiezes</option>
+      </select>
+      <select id="intervalo">
+        <option value="10000">Cada 10 s</option>
+        <option value="20000" selected>Cada 20 s</option>
+        <option value="30000">Cada 30 s</option>
+        <option value="60000">Cada 60 s</option>
+      </select>
+      <button class="btn" id="btnRefrescar">Actualizar ahora</button>
+      <button class="btn btn-back" onclick="window.location.href='index.html'">← Volver</button>
+    </div>
+    <div class="status loading" id="status">
+      <span class="dot"></span>
+      <span id="statusTexto">Conectando…</span>
+    </div>
+  </header>
+
+  <main>
+    <div id="map"></div>
+    <div class="leyenda">
+      <span class="leyenda-titulo" id="contadorTrenes">0 trenes</span>
+      <div class="leyenda-linea"><span class="leyenda-dot" style="background:#E8740C;"></span><span>L1 · Etxebarri – Plentzia</span></div>
+      <div class="leyenda-linea"><span class="leyenda-dot" style="background:#0F5FA6;"></span><span>L2 · Basauri – Kabiezes</span></div>
+      <span id="ultimaActualizacion" style="color:#8A857B;">esperando primera lectura…</span>
+    </div>
+    <div class="aviso" id="aviso">
+      <h3>No se ha podido leer el feed</h3>
+      <div id="avisoTexto"></div>
+    </div>
+  </main>
+
+  <footer>
+    <span>Fuente: SIRI Vehicle Monitoring — Metro Bilbao / Consorcio de Transportes de Bizkaia</span>
+    <span>Mapa © OpenStreetMap, Leaflet</span>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var URL_FEED = 'https://bizkaibus.cuentasmurf7.workers.dev/?feed=metro';
+  var CENTRO   = [43.2800, -2.9700];
+
+  // Códigos de destino → línea
+  var DEST_LINEA = {
+    ETX:'L1', PLE:'L1', URD:'L1', IBB:'L1', SOE:'L1', LAR:'L1',
+    BSR:'L2', KAB:'L2', MRM:'L2', ANS:'L2', GUR:'L2', SES:'L2',
+    ABT:'L2', BAG:'L2', SAR:'L2'
+  };
+
+  // Nombres legibles de estaciones
+  var ESTACIONES = {
+    ETX:'Etxebarri', PLE:'Plentzia', URD:'Urduliz', IBB:'Ibarbengoa',
+    BSR:'Basauri',   KAB:'Kabiezes', MRM:'Mamariga', ANS:'Ansio',
+    GUR:'Gurutzeta/Cruces', SES:'Sestao', ABT:'Abatxolo',
+    BAG:'Bagatza',   SAR:'Sarriko',  SOE:'Sopela', LAR:'Larrabasterra',
+    NEG:'Neguri',    ARE:'Areeta',   SIN:'San Ignazio', SAM:'Santimami/San Mamés',
+    ABA:'Abando',    CAV:'Casco Viejo', BOL:'Bolueta', SAN:'Santutxu'
+  };
+
+  var map, capaTrenes, intervaloId;
+  var cacheTrenes = [];
+
+  function init(){
+    map = L.map('map', {zoomControl:true}).setView(CENTRO, 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      maxZoom:19,
+      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+    capaTrenes = L.layerGroup().addTo(map);
+
+    document.getElementById('btnRefrescar').addEventListener('click', cargar);
+    document.getElementById('filtroLinea').addEventListener('change', pintarDesdeCache);
+    document.getElementById('intervalo').addEventListener('change', reiniciarTemporizador);
+
+    cargar();
+    reiniciarTemporizador();
+  }
+
+  function reiniciarTemporizador(){
+    if(intervaloId) clearInterval(intervaloId);
+    var ms = parseInt(document.getElementById('intervalo').value, 10);
+    intervaloId = setInterval(cargar, ms);
+  }
+
+  function setStatus(estado, texto){
+    document.getElementById('status').className = 'status ' + estado;
+    document.getElementById('statusTexto').textContent = texto;
+  }
+
+  function cargar(){
+    setStatus('loading','Actualizando…');
+    fetch(URL_FEED + '&_=' + Date.now(), {cache:'no-store'})
+      .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); })
+      .then(function(txt){
+        cacheTrenes = parsearSiriVM(txt);
+        pintarDesdeCache();
+        document.getElementById('aviso').classList.remove('show');
+        setStatus('ok', cacheTrenes.length + ' trenes · ' + horaActual());
+        document.getElementById('ultimaActualizacion').textContent = 'última lectura: ' + horaActual();
+      })
+      .catch(function(err){
+        console.error(err);
+        setStatus('err','Sin datos');
+        document.getElementById('avisoTexto').innerHTML = 'No se ha podido leer el feed.<br>Detalle: ' + esc(err.message);
+        document.getElementById('aviso').classList.add('show');
+      });
+  }
+
+  function horaActual(){
+    return new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  }
+
+  // ── Parseo XML SIRI ──────────────────────────────────────────────────────
+  function porLocalName(nodo, nombre){
+    var todos=nodo.getElementsByTagName('*'), out=[];
+    for(var i=0;i<todos.length;i++) if(todos[i].localName===nombre) out.push(todos[i]);
+    return out;
+  }
+  function textoHijo(nodo, nombre){
+    if(!nodo) return null;
+    for(var i=0;i<nodo.children.length;i++)
+      if(nodo.children[i].localName===nombre) return nodo.children[i].textContent.trim();
+    return null;
+  }
+  function nodoHijo(nodo, nombre){
+    if(!nodo) return null;
+    for(var i=0;i<nodo.children.length;i++)
+      if(nodo.children[i].localName===nombre) return nodo.children[i];
+    return null;
+  }
+
+  function parsearSiriVM(xmlTexto){
+    var doc = new DOMParser().parseFromString(xmlTexto, 'application/xml');
+    if(doc.getElementsByTagName('parsererror').length) throw new Error('XML inválido');
+    var actividades = porLocalName(doc,'VehicleActivity');
+    var out = [];
+    for(var i=0;i<actividades.length;i++){
+      var act = actividades[i];
+      var mvj = nodoHijo(act,'MonitoredVehicleJourney');
+      if(!mvj) continue;
+      var ub  = nodoHijo(mvj,'VehicleLocation');
+      var lat = ub ? parseFloat(textoHijo(ub,'Latitude'))  : NaN;
+      var lon = ub ? parseFloat(textoHijo(ub,'Longitude')) : NaN;
+      if(isNaN(lat)||isNaN(lon)) continue;
+
+      var destRef  = textoHijo(mvj,'DestinationRef') || '';
+      var dirRef   = textoHijo(mvj,'DirectionRef') || '';
+      var vehicRef = textoHijo(mvj,'VehicleRef') || '';
+      var linea    = DEST_LINEA[destRef] || 'L1';
+
+      // Estación actual: primera parte del VehicleRef (SAR_SAR2_BSR_... → SAR)
+      var estActualCod = vehicRef.split('_')[0] || '';
+
+      out.push({
+        id:          vehicRef || i,
+        vehicRef:    vehicRef,
+        lat:lat, lon:lon,
+        linea:       linea,
+        destCod:     destRef,
+        destNombre:  ESTACIONES[destRef] || destRef,
+        estActual:   ESTACIONES[estActualCod] || estActualCod,
+        direccion:   dirRef === '1' ? 'Ida' : dirRef === '2' ? 'Vuelta' : dirRef,
+        registrado:  textoHijo(act,'RecordedAtTime')
+      });
+    }
+    return out;
+  }
+
+  // ── Pintado ───────────────────────────────────────────────────────────────
+  function colorLinea(linea){
+    return linea === 'L2' ? '#0F5FA6' : '#E8740C';
+  }
+
+  function iconoTren(linea){
+    var color = colorLinea(linea);
+    return L.divIcon({
+      className:'',
+      html:
+        '<div style="position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;">' +
+          '<svg width="36" height="36" viewBox="0 0 36 36" style="position:absolute;top:0;left:0;">' +
+            '<rect x="2" y="2" width="32" height="32" rx="8" fill="'+color+'" stroke="#1C1B1A" stroke-width="2"/>' +
+          '</svg>' +
+          '<span style="position:relative;z-index:1;font-size:11px;font-weight:800;color:white;pointer-events:none;">'+esc(linea)+'</span>'+
+        '</div>',
+      iconSize:[36,36],
+      iconAnchor:[18,18],
+      popupAnchor:[0,-18]
+    });
+  }
+
+  function pintarDesdeCache(){
+    var filtro = document.getElementById('filtroLinea').value;
+    capaTrenes.clearLayers();
+
+    var visibles = cacheTrenes.filter(function(t){
+      return !filtro || t.linea === filtro;
+    });
+
+    visibles.forEach(function(t){
+      var marker = L.marker([t.lat, t.lon], {icon: iconoTren(t.linea)});
+      marker.bindPopup(construirPopup(t));
+      marker.addTo(capaTrenes);
+    });
+
+    document.getElementById('contadorTrenes').textContent =
+      visibles.length + (filtro ? ' / '+cacheTrenes.length : '') + ' trenes';
+  }
+
+  function construirPopup(t){
+    var color = colorLinea(t.linea);
+    var hReg = '';
+    if(t.registrado){
+      var d = new Date(t.registrado);
+      if(!isNaN(d)) hReg = '<p class="popup-meta">Posición: '+d.toLocaleTimeString('es-ES')+'</p>';
+    }
+    return '<span class="popup-linea" style="background:'+color+';">'+esc(t.linea)+'</span>' +
+      '<p class="popup-dest">→ '+esc(t.destNombre)+'</p>' +
+      (t.estActual ? '<p class="popup-meta">Zona: '+esc(t.estActual)+'</p>' : '') +
+      '<p class="popup-meta">Dirección: '+esc(t.direccion)+'</p>' +
+      hReg +
+      '<p class="popup-meta">Tren: '+esc(t.vehicRef)+'</p>';
+  }
+
+  function esc(s){
+    return String(s).replace(/[&<>"']/g,function(c){
+      return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
