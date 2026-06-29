@@ -44,6 +44,72 @@
   .popup-meta{font-size:12px;color:var(--gris);margin:2px 0;}
   .popup-retraso-tarde{color:var(--rojo-err);font-weight:600;}
   .popup-retraso-pronto{color:var(--verde-ok);font-weight:600;}
+  .panel-itinerario{
+    position:absolute;top:0;right:0;bottom:0;
+    width:340px;max-width:90vw;
+    background:rgba(28,27,26,0.97);
+    color:var(--hueso);
+    box-shadow:-6px 0 20px rgba(0,0,0,.3);
+    z-index:550;
+    display:flex;flex-direction:column;
+    transform:translateX(100%);
+    transition:transform .2s ease;
+  }
+  .panel-itinerario.show{transform:translateX(0);}
+  .panel-itinerario-cabecera{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 16px;border-bottom:1px solid #3a3835;flex-shrink:0;
+  }
+  .panel-itinerario-linea{
+    font-weight:800;font-size:16px;color:var(--naranja);
+  }
+  #btnCerrarItinerario{
+    background:transparent;border:none;color:var(--hueso);
+    font-size:16px;cursor:pointer;padding:4px 8px;border-radius:6px;
+    line-height:1;
+  }
+  #btnCerrarItinerario:hover{background:#2A2826;}
+  .panel-itinerario-tabs{
+    display:flex;gap:6px;padding:10px 16px 0;flex-shrink:0;
+  }
+  .panel-itinerario-tabs button{
+    flex:1;background:#2A2826;border:1px solid #3a3835;color:var(--hueso);
+    font-size:12px;font-weight:600;padding:7px 8px;border-radius:6px;
+    cursor:pointer;
+  }
+  .panel-itinerario-tabs button.activa{
+    background:var(--naranja);color:var(--tinta);border-color:var(--naranja);
+  }
+  .panel-itinerario-lista{
+    flex:1;overflow-y:auto;padding:14px 16px 20px;
+  }
+  .parada-item{
+    display:flex;align-items:flex-start;gap:10px;
+    padding:8px 0;
+    border-left:2px solid #3a3835;
+    margin-left:5px;padding-left:14px;
+    position:relative;
+  }
+  .parada-item::before{
+    content:"";position:absolute;left:-6px;top:13px;
+    width:9px;height:9px;border-radius:50%;
+    background:var(--naranja);border:2px solid #1C1B1A;
+  }
+  .parada-item:first-child::before, .parada-item:last-child::before{
+    width:11px;height:11px;left:-7px;
+  }
+  .parada-item .num{
+    font-size:11px;color:#8a857d;min-width:18px;flex-shrink:0;padding-top:1px;
+  }
+  .parada-item .nombre{font-size:13px;line-height:1.4;}
+  .panel-itinerario-vacio{
+    color:#8a857d;font-size:13px;padding:20px 0;text-align:center;
+  }
+
+  @media (max-width: 640px){
+    .panel-itinerario{width:100%;max-width:100%;}
+  }
+
   footer{padding:7px 16px;font-size:11px;color:var(--gris);background:var(--hueso);border-top:1px solid var(--linea);display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;}
 </style>
 </head>
@@ -71,11 +137,6 @@
   </header>
   <main>
     <div id="map"></div>
-    <div style="position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:1000;max-width:580px;width:calc(100% - 24px);background:rgba(28,27,26,0.93);color:#F6F2EA;border:1px solid #E84E1B;border-radius:10px;padding:12px 16px;font-size:12px;line-height:1.6;box-shadow:0 4px 14px rgba(0,0,0,.3);">
-      <strong style="color:#E84E1B;">ℹ️ Aviso · Oharra</strong><br>
-      Es posible que algunas líneas no aparezcan en el mapa porque las fuentes oficiales no ofrecen información completa sobre todos los servicios en tiempo real. No es un error de esta web. Disculpe las molestias.<br>
-      <span style="color:#C9C4BC;">Baliteke autobus batzuk mapan ez agertzea, iturri ofizialek zerbitzu guztiei buruzko informazio osoa denbora errealean eskaintzen ez dutelako. Ez da webgune honetako akats bat. Barkatu eragozpenak.</span>
-    </div>
     <div class="leyenda">
       <b id="contadorBuses">0 autobuses</b>
       <span id="ultimaActualizacion">esperando primera lectura…</span>
@@ -83,6 +144,14 @@
     <div class="aviso" id="aviso">
       <h3>No se ha podido leer el feed en directo</h3>
       <div id="avisoTexto"></div>
+    </div>
+    <div class="panel-itinerario" id="panelItinerario">
+      <div class="panel-itinerario-cabecera">
+        <span class="panel-itinerario-linea" id="panelItinerarioLinea"></span>
+        <button type="button" id="btnCerrarItinerario" aria-label="Cerrar itinerario">✕</button>
+      </div>
+      <div class="panel-itinerario-tabs" id="panelItinerarioTabs"></div>
+      <div class="panel-itinerario-lista" id="panelItinerarioLista"></div>
     </div>
   </main>
   <footer>
@@ -95,6 +164,7 @@
 (function(){
   var URL_FEED  = "https://bizkaibus.cuentasmurf7.workers.dev";
   var URL_RUTAS = "feeds/rutas_simple.json";
+  var URL_ITINERARIOS = "feeds/itinerarios_lineas.json";
   var CENTRO    = [43.2630, -2.9350];
 
   var map, capaBuses;
@@ -102,6 +172,8 @@
   var rutasCache   = null;
   var rutaActual   = null;
   var cacheVehiculos = [];
+  var itinerariosCache = null;
+  var direccionMostrada = '0'; // '0' o '1', qué pestaña de ida/vuelta está activa
 
   // ------------------------------------------------------------------
   function init(){
@@ -122,12 +194,86 @@
     });
 
     document.getElementById('btnRefrescar').addEventListener('click', cargar);
-    document.getElementById('filtroLinea').addEventListener('input', pintarDesdeCache);
+    document.getElementById('filtroLinea').addEventListener('input', function(){
+      pintarDesdeCache();
+      actualizarPanelItinerario();
+    });
     document.getElementById('intervalo').addEventListener('change', reiniciarTemporizador);
+    document.getElementById('btnCerrarItinerario').addEventListener('click', ocultarPanelItinerario);
 
     cargarRutas();
+    cargarItinerarios();
     cargar();
     reiniciarTemporizador();
+  }
+
+  // ------------------------------------------------------------------
+  // ITINERARIOS (paradas por línea, datos estáticos del GTFS oficial)
+  // ------------------------------------------------------------------
+  function cargarItinerarios(){
+    fetch(URL_ITINERARIOS)
+      .then(function(r){ return r.json(); })
+      .then(function(d){ itinerariosCache = d; })
+      .catch(function(){ itinerariosCache = {}; });
+  }
+
+  function actualizarPanelItinerario(){
+    var filtro = document.getElementById('filtroLinea').value.trim().toUpperCase();
+    if(!itinerariosCache || !filtro){
+      ocultarPanelItinerario();
+      return;
+    }
+    // Buscamos coincidencia exacta de línea, probando con y sin la "A" inicial,
+    // igual que ya hacemos en otros sitios del código (las líneas urbanas/algunas
+    // interurbanas no llevan ese prefijo).
+    var datosLinea = itinerariosCache[filtro] || itinerariosCache['A'+filtro] || itinerariosCache[filtro.replace(/^A/,'')];
+    if(!datosLinea){
+      ocultarPanelItinerario();
+      return;
+    }
+    mostrarPanelItinerario(filtro, datosLinea);
+  }
+
+  function mostrarPanelItinerario(linea, datosLinea){
+    var direccionesDisponibles = Object.keys(datosLinea);
+    if(direccionesDisponibles.indexOf(direccionMostrada) === -1){
+      direccionMostrada = direccionesDisponibles[0];
+    }
+
+    document.getElementById('panelItinerarioLinea').textContent = 'Línea ' + linea;
+
+    var tabs = document.getElementById('panelItinerarioTabs');
+    tabs.innerHTML = '';
+    direccionesDisponibles.forEach(function(dir){
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = dir === '0' ? 'Ida' : 'Vuelta';
+      btn.className = (dir === direccionMostrada) ? 'activa' : '';
+      btn.addEventListener('click', function(){
+        direccionMostrada = dir;
+        mostrarPanelItinerario(linea, datosLinea);
+      });
+      tabs.appendChild(btn);
+    });
+
+    var paradas = datosLinea[direccionMostrada] || [];
+    var lista = document.getElementById('panelItinerarioLista');
+    if(!paradas.length){
+      lista.innerHTML = '<p class="panel-itinerario-vacio">No hay itinerario disponible para este sentido.</p>';
+    } else {
+      lista.innerHTML = paradas.map(function(p, i){
+        return '<div class="parada-item">' +
+          '<span class="num">' + (i+1) + '</span>' +
+          '<span class="nombre">' + esc(p.nombre || ('Parada ' + p.id)) + '</span>' +
+        '</div>';
+      }).join('');
+    }
+
+    document.getElementById('panelItinerario').classList.add('show');
+  }
+
+  function ocultarPanelItinerario(){
+    document.getElementById('panelItinerario').classList.remove('show');
   }
 
   // ------------------------------------------------------------------
@@ -306,6 +452,8 @@
       marker.on('click', function(e){
         e.originalEvent._marcadorClick = true;
         mostrarRuta(v.linea);
+        document.getElementById('filtroLinea').value = v.linea;
+        actualizarPanelItinerario();
       });
       marker.addTo(capaBuses);
     });
