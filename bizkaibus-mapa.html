@@ -203,12 +203,12 @@
     <div class="panel-buscador" id="panelBuscador">
       <h3>¿Qué autobús coger?</h3>
       <div class="campo-buscador">
-        <label for="selectOrigen">Origen</label>
-        <select id="selectOrigen"><option value="">Selecciona parada…</option></select>
+        <label for="selectOrigen">Municipio / barrio de origen</label>
+        <select id="selectOrigen"><option value="">Selecciona municipio o barrio…</option></select>
       </div>
       <div class="campo-buscador">
-        <label for="selectDestino">Destino</label>
-        <select id="selectDestino"><option value="">Selecciona parada…</option></select>
+        <label for="selectDestino">Municipio / barrio de destino</label>
+        <select id="selectDestino"><option value="">Selecciona municipio o barrio…</option></select>
       </div>
       <div class="campo-buscador">
         <label for="inputFecha">Fecha</label>
@@ -247,6 +247,7 @@
   var URL_ITINERARIOS = "feeds/itinerarios_lineas.json";
   var URL_LISTA_PARADAS = "feeds/lista_paradas.json";
   var URL_INDICE_PARADAS = "feeds/indice_paradas.json";
+  var URL_PARADA_MUNICIPIO = "feeds/parada_municipio.json";
   // Horarios simplificados por patrón semanal (no por fecha exacta, ver
   // notas en cargarDatosBuscadorTrayecto): un único bloque por línea+
   // dirección+categoría de día (laborable / sábado / domingo). No cubre
@@ -264,6 +265,8 @@
   var direccionMostrada = '0'; // '0' o '1', qué pestaña de ida/vuelta está activa
   var listaParadasCache = null;     // [[stop_id, nombre], ...]
   var indiceParadasCache = null;    // stop_id -> [{linea, dir, idx}, ...]
+  var paradaMunicipioCache = null;  // stop_id -> "NOMBRE MUNICIPIO"
+  var agrupacionMunicipios = null;  // "NOMBRE MUNICIPIO" -> [stop_id, ...]
   var horariosSemanalesCache = null; // linea -> dir -> {laborable:[[...]], sabado:[[...]], domingo:[[...]]}
 
   // ------------------------------------------------------------------
@@ -334,14 +337,32 @@
     Promise.all([
       fetch(URL_LISTA_PARADAS).then(function(r){ return r.json(); }),
       fetch(URL_INDICE_PARADAS).then(function(r){ return r.json(); }),
-      fetch(URL_HORARIOS_SEMANALES).then(function(r){ return r.json(); })
+      fetch(URL_HORARIOS_SEMANALES).then(function(r){ return r.json(); }),
+      fetch(URL_PARADA_MUNICIPIO).then(function(r){ return r.json(); }).catch(function(){ return {}; })
     ]).then(function(resultados){
       listaParadasCache = resultados[0];
       indiceParadasCache = resultados[1];
       horariosSemanalesCache = resultados[2];
+      paradaMunicipioCache = resultados[3] || {};
+      construirAgrupacionMunicipios();
       poblarDesplegablesParadas();
     }).catch(function(err){
       console.error('No se pudieron cargar los datos del buscador de trayecto:', err);
+    });
+  }
+
+  // A partir de listaParadasCache + paradaMunicipioCache, agrupa los
+  // stop_id por municipio. Si paradaMunicipioCache no tiene un stop_id
+  // (no se ha generado el cruce, o esa parada no se pudo cruzar con la
+  // API oficial), la parada cae en el grupo "Otras paradas" para no
+  // perderla del buscador.
+  function construirAgrupacionMunicipios(){
+    agrupacionMunicipios = {};
+    listaParadasCache.forEach(function(par){
+      var stopId = par[0];
+      var municipio = (paradaMunicipioCache && paradaMunicipioCache[stopId]) || 'Otras paradas';
+      if(!agrupacionMunicipios[municipio]) agrupacionMunicipios[municipio] = [];
+      agrupacionMunicipios[municipio].push(stopId);
     });
   }
 
@@ -351,14 +372,21 @@
     var fragmentoOrigen = document.createDocumentFragment();
     var fragmentoDestino = document.createDocumentFragment();
 
-    listaParadasCache.forEach(function(par){
-      var stopId = par[0], nombre = par[1] || ('Parada ' + par[0]);
+    var municipios = Object.keys(agrupacionMunicipios).sort(function(a,b){
+      // "Otras paradas" siempre al final, el resto por orden alfabético
+      if(a === 'Otras paradas') return 1;
+      if(b === 'Otras paradas') return -1;
+      return a.localeCompare(b, 'es');
+    });
+
+    municipios.forEach(function(municipio){
+      var numParadas = agrupacionMunicipios[municipio].length;
       var opt1 = document.createElement('option');
-      opt1.value = stopId; opt1.textContent = nombre;
+      opt1.value = municipio; opt1.textContent = municipio + ' (' + numParadas + ')';
       fragmentoOrigen.appendChild(opt1);
 
       var opt2 = document.createElement('option');
-      opt2.value = stopId; opt2.textContent = nombre;
+      opt2.value = municipio; opt2.textContent = municipio + ' (' + numParadas + ')';
       fragmentoDestino.appendChild(opt2);
     });
 
@@ -381,17 +409,17 @@
   }
 
   function buscarTrayecto(){
-    var origenId = document.getElementById('selectOrigen').value;
-    var destinoId = document.getElementById('selectDestino').value;
+    var municipioOrigen = document.getElementById('selectOrigen').value;
+    var municipioDestino = document.getElementById('selectDestino').value;
     var valorFecha = document.getElementById('inputFecha').value;
     var contenedorResultados = document.getElementById('resultadosTrayecto');
 
-    if(!origenId || !destinoId){
-      contenedorResultados.innerHTML = '<p class="resultados-vacio">Elige una parada de origen y otra de destino.</p>';
+    if(!municipioOrigen || !municipioDestino){
+      contenedorResultados.innerHTML = '<p class="resultados-vacio">Elige un municipio/barrio de origen y otro de destino.</p>';
       return;
     }
-    if(origenId === destinoId){
-      contenedorResultados.innerHTML = '<p class="resultados-vacio">El origen y el destino no pueden ser la misma parada.</p>';
+    if(municipioOrigen === municipioDestino){
+      contenedorResultados.innerHTML = '<p class="resultados-vacio">El origen y el destino no pueden ser el mismo municipio/barrio.</p>';
       return;
     }
     if(!valorFecha){
@@ -401,22 +429,45 @@
 
     var categoria = categoriaDeFecha(valorFecha);
 
-    // 1. ¿Qué línea+dirección tienen tanto el origen como el destino, con el
-    //    origen en una posición ANTERIOR al destino dentro del recorrido?
-    var entradasOrigen = indiceParadasCache[origenId] || [];
-    var entradasDestino = indiceParadasCache[destinoId] || [];
+    // 1. Todas las paradas que pertenecen al municipio/barrio de origen y
+    //    al de destino.
+    var paradasOrigen = agrupacionMunicipios[municipioOrigen] || [];
+    var paradasDestino = agrupacionMunicipios[municipioDestino] || [];
 
-    var candidatas = []; // {linea, dir, idxOrigen, idxDestino}
+    // 2. Para cada parada del grupo, sus entradas en el índice línea+dir+idx
+    var entradasOrigen = [];
+    paradasOrigen.forEach(function(stopId){
+      (indiceParadasCache[stopId] || []).forEach(function(e){ entradasOrigen.push(e); });
+    });
+    var entradasDestino = [];
+    paradasDestino.forEach(function(stopId){
+      (indiceParadasCache[stopId] || []).forEach(function(e){ entradasDestino.push(e); });
+    });
+
+    // 3. ¿Qué línea+dirección conecta alguna parada del grupo origen con
+    //    alguna del grupo destino, en ese orden? Si varias paradas del
+    //    mismo grupo sirven a la misma línea+dirección, nos quedamos con
+    //    la combinación que coge el autobús lo antes posible dentro del
+    //    origen (idx más bajo) y lo deja lo más lejos posible dentro del
+    //    destino (idx más alto), para no duplicar la misma línea varias
+    //    veces en los resultados.
+    var candidatasMapa = {};
     entradasOrigen.forEach(function(eo){
       entradasDestino.forEach(function(ed){
         if(eo.linea === ed.linea && eo.dir === ed.dir && eo.idx < ed.idx){
-          candidatas.push({ linea: eo.linea, dir: eo.dir, idxOrigen: eo.idx, idxDestino: ed.idx });
+          var clave = eo.linea + '|' + eo.dir;
+          var actual = candidatasMapa[clave];
+          if(!actual || eo.idx < actual.idxOrigen ||
+             (eo.idx === actual.idxOrigen && ed.idx > actual.idxDestino)){
+            candidatasMapa[clave] = { linea: eo.linea, dir: eo.dir, idxOrigen: eo.idx, idxDestino: ed.idx };
+          }
         }
       });
     });
+    var candidatas = Object.keys(candidatasMapa).map(function(k){ return candidatasMapa[k]; });
 
     if(!candidatas.length){
-      contenedorResultados.innerHTML = '<p class="resultados-vacio">No se ha encontrado ninguna línea directa entre esas dos paradas.</p>';
+      contenedorResultados.innerHTML = '<p class="resultados-vacio">No se ha encontrado ninguna línea directa entre esas dos zonas.</p>';
       return;
     }
 
