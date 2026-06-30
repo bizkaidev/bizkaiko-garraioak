@@ -280,8 +280,14 @@
     capaBuses = L.layerGroup().addTo(map);
 
     map.on('click', function(e){
-      // Borrar ruta al clicar en el mapa fuera de un marcador
-      if(!e.originalEvent._marcadorClick) borrarRuta();
+      // Al clicar en el mapa fuera de un marcador: borrar la ruta dibujada,
+      // vaciar el campo de filtro de línea y cerrar el panel de itinerario
+      if(!e.originalEvent._marcadorClick){
+        borrarRuta();
+        document.getElementById('filtroLinea').value = '';
+        pintarDesdeCache();
+        ocultarPanelItinerario();
+      }
     });
 
     document.getElementById('btnRefrescar').addEventListener('click', cargar);
