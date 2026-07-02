@@ -87,6 +87,43 @@
   .res-dur{color:var(--gris);font-size:11px;}
   .res-vacio{text-align:center;padding:16px;color:var(--gris);font-size:12px;}
   .res-aviso{font-size:10px;color:var(--gris);margin-top:8px;line-height:1.4;border-top:1px solid var(--borde);padding-top:8px;}
+
+  /* ── Responsive móvil: el header/aviso/selector no deben "comerse" el mapa ── */
+  .aviso-toggle{display:none;}
+  @media (max-width:768px){
+    html,body{height:100dvh;}
+    header{padding:10px 12px;gap:8px;}
+    .brand .sub{display:none;}
+    .btn-back{padding:6px 9px;font-size:12px;}
+
+    /* Aviso: colapsado por defecto, se expande al tocar */
+    .aviso-rt{position:relative;padding:8px 34px 8px 12px;cursor:pointer;}
+    .aviso-rt .aviso-texto{display:none;max-height:0;overflow:hidden;}
+    .aviso-rt.abierto .aviso-texto{display:block;max-height:400px;}
+    .aviso-rt strong{font-size:12px;}
+    .aviso-toggle{
+      display:flex;align-items:center;justify-content:center;
+      position:absolute;right:8px;top:8px;width:22px;height:22px;
+      font-size:10px;transition:transform .2s;flex-shrink:0;
+    }
+    .aviso-rt.abierto .aviso-toggle{transform:rotate(180deg);}
+
+    /* Selector de líneas: una sola fila con scroll horizontal, más compacto */
+    .lineas{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:8px 10px;gap:7px;}
+    .linea-btn{padding:6px 9px;flex-shrink:0;}
+    .lb-badge{width:26px;height:26px;font-size:10px;}
+    .lb-desc{display:none;}
+    .lb-nombre{font-size:11px;}
+
+    /* Buscador flotante: que no desborde en pantallas pequeñas */
+    #buscador-panel{width:calc(100% - 24px);max-width:300px;top:10px;}
+
+    /* Leyenda más compacta */
+    .leyenda{padding:8px 10px;font-size:10px;bottom:10px;left:10px;}
+
+    /* Footer compacto, en una línea si es posible */
+    footer{padding:5px 12px;font-size:9px;gap:2px 10px;}
+  }
 </style>
 </head>
 <body>
@@ -98,12 +135,14 @@
     </div>
     <button class="btn-back" onclick="window.location.href='index.html'">← Volver</button>
   </header>
-  <div class="aviso-rt">
+  <div class="aviso-rt" id="aviso-rt" onclick="toggleAviso()">
     <span style="font-size:18px;flex-shrink:0;">ℹ️</span>
     <div>
-      <strong>Sin datos en tiempo real</strong> — Euskotren no publica posición de trenes en fuentes abiertas. Esta página muestra el trazado estático de las líneas de Bizkaia. Para horarios: <a href="https://euskotren.euskadi.eus" target="_blank">euskotren.euskadi.eus</a><br>
-      <span class="eu">Euskotrenen tren-posizioari buruzko denbora errealeko datuak ez daude eskuragarri iturri irekietan. Orrialde honek Bizkaiko lineen trazatu estatikoa erakusten du. Ordutegietan: <a href="https://euskotren.euskadi.eus" target="_blank" style="color:rgba(255,255,255,0.72);">euskotren.euskadi.eus</a></span>
+      <strong>Sin datos en tiempo real</strong>
+      <span class="aviso-texto"> — Euskotren no publica posición de trenes en fuentes abiertas. Esta página muestra el trazado estático de las líneas de Bizkaia. Para horarios: <a href="https://euskotren.euskadi.eus" target="_blank">euskotren.euskadi.eus</a><br>
+      <span class="eu">Euskotrenen tren-posizioari buruzko denbora errealeko datuak ez daude eskuragarri iturri irekietan. Orrialde honek Bizkaiko lineen trazatu estatikoa erakusten du. Ordutegietan: <a href="https://euskotren.euskadi.eus" target="_blank" style="color:rgba(255,255,255,0.72);">euskotren.euskadi.eus</a></span></span>
     </div>
+    <span class="aviso-toggle">▼</span>
   </div>
   <div class="lineas" id="selector"></div>
   <main>
@@ -359,6 +398,10 @@
     var hoy = new Date();
     document.getElementById('b-fecha').value = hoy.toISOString().split('T')[0];
   });
+
+function toggleAviso(){
+  document.getElementById("aviso-rt").classList.toggle("abierto");
+}
 
 function toggleBuscador(){
   var toggle = document.getElementById('buscador-toggle');
